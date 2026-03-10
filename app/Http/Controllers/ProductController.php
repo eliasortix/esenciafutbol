@@ -10,27 +10,40 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    public function index()
+    /**
+     * LISTADO SIMPLE DE PRODUCTOS
+     */
+    public function productList()
     {
-        $products = Product::with(['priceType', 'supplier'])->latest()->paginate(15);
+        $products = Product::with(['priceType', 'supplier'])
+            ->latest()
+            ->paginate(15);
 
-        return view('products.index', compact('products'));
+        return view('products.productList', compact('products'));
     }
 
-    public function create()
+    /**
+     * VISTA CREAR PRODUCTO
+     */
+    public function productCreate()
     {
-        $priceTypes = PriceType::where('active', true)->orderBy('name')->get();
+        $priceTypes = PriceType::where('active', true)
+            ->orderBy('name')
+            ->get();
+
         $suppliers = Supplier::orderBy('name')->get();
 
-        return view('products.create', compact('priceTypes', 'suppliers'));
+        return view('products.productCreate', compact('priceTypes', 'suppliers'));
     }
 
+    /**
+     * GUARDAR PRODUCTO NUEVO
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
             'sku' => 'required|string|max:255|unique:products,sku',
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:products,slug',
             'description' => 'nullable|string',
             'status' => 'required|in:active,inactive',
             'section_type' => 'required|in:league,national_team,retro',
@@ -42,38 +55,37 @@ class ProductController extends Controller
             'cost' => 'nullable|numeric|min:0',
         ]);
 
-        if (empty($validated['slug'])) {
-            $validated['slug'] = Str::slug($validated['name']);
-        }
+        $validated['slug'] = Str::slug($validated['name']);
 
         Product::create($validated);
 
         return redirect()
-            ->route('products.index')
+            ->route('products.list')
             ->with('success', 'Producto creado correctamente.');
     }
 
-    public function show(Product $product)
+    /**
+     * VISTA EDITAR PRODUCTO
+     */
+    public function productEdit(Product $product)
     {
-        $product->load(['priceType', 'supplier', 'images']);
+        $priceTypes = PriceType::where('active', true)
+            ->orderBy('name')
+            ->get();
 
-        return view('products.show', compact('product'));
-    }
-
-    public function edit(Product $product)
-    {
-        $priceTypes = PriceType::where('active', true)->orderBy('name')->get();
         $suppliers = Supplier::orderBy('name')->get();
 
-        return view('products.edit', compact('product', 'priceTypes', 'suppliers'));
+        return view('products.productEdit', compact('product', 'priceTypes', 'suppliers'));
     }
 
+    /**
+     * ACTUALIZAR PRODUCTO
+     */
     public function update(Request $request, Product $product)
     {
         $validated = $request->validate([
             'sku' => 'required|string|max:255|unique:products,sku,' . $product->id,
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:products,slug,' . $product->id,
             'description' => 'nullable|string',
             'status' => 'required|in:active,inactive',
             'section_type' => 'required|in:league,national_team,retro',
@@ -85,23 +97,24 @@ class ProductController extends Controller
             'cost' => 'nullable|numeric|min:0',
         ]);
 
-        if (empty($validated['slug'])) {
-            $validated['slug'] = Str::slug($validated['name']);
-        }
+        $validated['slug'] = Str::slug($validated['name']);
 
         $product->update($validated);
 
         return redirect()
-            ->route('products.index')
+            ->route('products.list')
             ->with('success', 'Producto actualizado correctamente.');
     }
 
+    /**
+     * BORRAR PRODUCTO
+     */
     public function destroy(Product $product)
     {
         $product->delete();
 
         return redirect()
-            ->route('products.index')
+            ->route('products.list')
             ->with('success', 'Producto eliminado correctamente.');
     }
 }
