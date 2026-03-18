@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
     protected $fillable = [
+        'team_id',
+        'season_id',
         'sku',
         'name',
         'slug',
@@ -18,21 +22,39 @@ class Product extends Model
         'version_type',
         'price_type_id',
         'supplier_id',
+        'supplier_product_name', // AÑADE ESTO
         'cost',
     ];
 
-    public function priceType()
+    public function team(): BelongsTo
     {
-        return $this->belongsTo(PriceType::class);
+        return $this->belongsTo(Team::class);
     }
 
-    public function supplier()
+    public function seasonModel(): BelongsTo
+    {
+        return $this->belongsTo(Season::class, 'season_id');
+    }
+
+    public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
     }
 
-    public function images()
+    public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class);
+    }
+
+    // Dentro de la clase Product
+    public function inventories()
+    {
+        return $this->hasMany(Inventory::class);
+    }
+
+    // Un pequeño "truco" para obtener el stock disponible rápido
+    public function getStockAttribute()
+    {
+        return $this->inventories()->where('is_sold', false)->count();
     }
 }

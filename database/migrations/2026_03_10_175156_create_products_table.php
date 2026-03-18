@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('season')->nullable();
             $table->string('kit_type')->nullable();
             $table->string('version_type');
-            $table->foreignId('price_type_id')->constrained('price_types')->restrictOnDelete();
+            $table->foreignId('price_type_id')->nullable()->constrained();
             $table->foreignId('supplier_id')->nullable()->constrained('suppliers')->nullOnDelete();
             $table->decimal('cost', 10, 2)->nullable();
             $table->timestamps();

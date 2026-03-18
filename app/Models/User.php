@@ -1,107 +1,33 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Models;
 
-use App\Models\Product;
-use App\Models\PriceType;
-use App\Models\Supplier;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
-class ProductController extends Controller
+class User extends Authenticatable
 {
-    public function index()
+    use HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'is_admin',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected function casts(): array
     {
-        $products = Product::with(['priceType', 'supplier'])->latest()->paginate(15);
-
-        return view('products.index', compact('products'));
-    }
-
-    public function create()
-    {
-        $priceTypes = PriceType::where('active', true)->orderBy('name')->get();
-        $suppliers = Supplier::orderBy('name')->get();
-
-        return view('products.create', compact('priceTypes', 'suppliers'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'sku' => 'required|string|max:255|unique:products,sku',
-            'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:products,slug',
-            'description' => 'nullable|string',
-            'status' => 'required|in:active,inactive',
-            'section_type' => 'required|in:league,national_team,retro',
-            'season' => 'nullable|string|max:50',
-            'kit_type' => 'nullable|in:home,away,third,special',
-            'version_type' => 'required|in:fan,player',
-            'price_type_id' => 'required|exists:price_types,id',
-            'supplier_id' => 'nullable|exists:suppliers,id',
-            'cost' => 'nullable|numeric|min:0',
-        ]);
-
-        if (empty($validated['slug'])) {
-            $validated['slug'] = Str::slug($validated['name']);
-        }
-
-        Product::create($validated);
-
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Producto creado correctamente.');
-    }
-
-    public function show(Product $product)
-    {
-        $product->load(['priceType', 'supplier', 'images']);
-
-        return view('products.show', compact('product'));
-    }
-
-    public function edit(Product $product)
-    {
-        $priceTypes = PriceType::where('active', true)->orderBy('name')->get();
-        $suppliers = Supplier::orderBy('name')->get();
-
-        return view('products.edit', compact('product', 'priceTypes', 'suppliers'));
-    }
-
-    public function update(Request $request, Product $product)
-    {
-        $validated = $request->validate([
-            'sku' => 'required|string|max:255|unique:products,sku,' . $product->id,
-            'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:products,slug,' . $product->id,
-            'description' => 'nullable|string',
-            'status' => 'required|in:active,inactive',
-            'section_type' => 'required|in:league,national_team,retro',
-            'season' => 'nullable|string|max:50',
-            'kit_type' => 'nullable|in:home,away,third,special',
-            'version_type' => 'required|in:fan,player',
-            'price_type_id' => 'required|exists:price_types,id',
-            'supplier_id' => 'nullable|exists:suppliers,id',
-            'cost' => 'nullable|numeric|min:0',
-        ]);
-
-        if (empty($validated['slug'])) {
-            $validated['slug'] = Str::slug($validated['name']);
-        }
-
-        $product->update($validated);
-
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Producto actualizado correctamente.');
-    }
-
-    public function destroy(Product $product)
-    {
-        $product->delete();
-
-        return redirect()
-            ->route('products.index')
-            ->with('success', 'Producto eliminado correctamente.');
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_admin' => 'boolean',
+        ];
     }
 }

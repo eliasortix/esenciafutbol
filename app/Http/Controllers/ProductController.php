@@ -2,66 +2,99 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Competition;
 use App\Models\Product;
-use App\Models\PriceType;
+use App\Models\ProductImage;
+use App\Models\Season;
 use App\Models\Supplier;
+use App\Models\Team;
+use App\Models\Sale;
+use App\Models\Inventory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class ProductController extends Controller
 {
     /**
-     * LISTADO SIMPLE DE PRODUCTOS
+     * VISTA PRINCIPAL: LISTADO DE PRODUCTOS (INVENTARIO)
      */
     public function productList()
     {
-        $products = Product::with(['priceType', 'supplier'])
+        $products = Product::with(['team', 'seasonModel', 'supplier', 'images'])
             ->latest()
             ->paginate(15);
 
-        return view('products.productList', compact('products'));
+        $salesTotal = Sale::sum('company_profit');
+
+        $availableStockCount = 0;
+        if (Schema::hasTable('inventories')) {
+            $availableStockCount = Inventory::where('is_sold', false)->count();
+        }
+
+        return view('products.productList', compact('products', 'salesTotal', 'availableStockCount'));
     }
 
     /**
-     * VISTA CREAR PRODUCTO
+     * VISTA CREAR PRODUCTO (CATÁLOGO)
      */
     public function productCreate()
     {
-        $priceTypes = PriceType::where('active', true)
-            ->orderBy('name')
-            ->get();
-
         $suppliers = Supplier::orderBy('name')->get();
+        $competitions = Competition::where('active', true)->orderBy('name')->get();
+        $teams = Team::where('active', true)->orderBy('name')->get();
+        $seasons = Season::where('active', true)->orderByDesc('sort_order')->get();
 
-        return view('products.productCreate', compact('priceTypes', 'suppliers'));
+        return view('products.productCreate', compact('suppliers', 'competitions', 'teams', 'seasons'));
     }
 
     /**
-     * GUARDAR PRODUCTO NUEVO
+     * GUARDAR PRODUCTO NUEVO EN EL CATÁLOGO
      */
-    public function store(Request $request)
+    public function store(Request $request) 
     {
-        $validated = $request->validate([
-            'sku' => 'required|string|max:255|unique:products,sku',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'required|in:active,inactive',
-            'section_type' => 'required|in:league,national_team,retro',
-            'season' => 'nullable|string|max:50',
-            'kit_type' => 'nullable|in:home,away,third,special',
-            'version_type' => 'required|in:fan,player',
-            'price_type_id' => 'required|exists:price_types,id',
-            'supplier_id' => 'nullable|exists:suppliers,id',
-            'cost' => 'nullable|numeric|min:0',
+        $request->validate([
+            'product_id' => 'nullable|exists:products,id',
+            'manual_product_name' => 'nullable|string|max:255',
+            'size' => 'required|string',
+            'quantity' => 'required|integer|min:1',
+            'cost_price' => 'required|numeric|min:0',
+            'supplier_product_name' => 'nullable|string|max:255',
         ]);
 
-        $validated['slug'] = Str::slug($validated['name']);
+        if ($request->filled('product_id')) {
+            $product = Product::find($request->product_id);
+            $finalName = $product->name;
+            $productId = $product->id;
+        } else {
+            $finalName = $request->manual_product_name ?? 'Producto Manual';
+            $productId = null; 
+        }
 
-        Product::create($validated);
+        // 1. Crear el registro del Pedido (Historial)
+        // Probamos a guardar solo lo que el modelo decía originalmente
+        Order::create([
+            // Si 'product_id' te sigue dando error, comenta la línea de abajo
+            // 'product_id' => $productId, 
+            'product_name' => $finalName . " - Talla " . $request->size,
+            'supplier_product_name' => $request->supplier_product_name ?? $finalName,
+            'cost_price' => $request->cost_price,
+            'is_available' => true,
+        ]);
 
-        return redirect()
-            ->route('products.list')
-            ->with('success', 'Producto creado correctamente.');
+        // 2. Crear las unidades reales en Inventario
+        for ($i = 0; $i < $request->quantity; $i++) {
+            Inventory::create([
+                'product_id' => $productId,
+                'size' => $request->size,
+                'cost_price' => $request->cost_price,
+                'supplier_product_name' => $request->supplier_product_name ?? $finalName,
+                'is_sold' => false,
+            ]);
+        }
+
+        return redirect()->route('orders.index')->with('success', 'Pedido y stock registrados correctamente.');
     }
 
     /**
@@ -69,13 +102,13 @@ class ProductController extends Controller
      */
     public function productEdit(Product $product)
     {
-        $priceTypes = PriceType::where('active', true)
-            ->orderBy('name')
-            ->get();
-
+        $product->load('images', 'team', 'seasonModel');
         $suppliers = Supplier::orderBy('name')->get();
+        $competitions = Competition::where('active', true)->orderBy('name')->get();
+        $teams = Team::where('active', true)->orderBy('name')->get();
+        $seasons = Season::where('active', true)->orderByDesc('sort_order')->get();
 
-        return view('products.productEdit', compact('product', 'priceTypes', 'suppliers'));
+        return view('products.productEdit', compact('product', 'suppliers', 'competitions', 'teams', 'seasons'));
     }
 
     /**
@@ -84,37 +117,121 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $validated = $request->validate([
-            'sku' => 'required|string|max:255|unique:products,sku,' . $product->id,
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'competition_id' => 'required|exists:competitions,id',
+            'team_id' => 'required|exists:teams,id',
+            'season_id' => 'required_unless:version_type,retro|nullable|exists:seasons,id',
+            'season_manual' => 'required_if:version_type,retro|nullable|string|max:255',
+            'sku' => 'nullable|string|max:255|unique:products,sku,' . $product->id,
             'status' => 'required|in:active,inactive',
-            'section_type' => 'required|in:league,national_team,retro',
-            'season' => 'nullable|string|max:50',
             'kit_type' => 'nullable|in:home,away,third,special',
-            'version_type' => 'required|in:fan,player',
-            'price_type_id' => 'required|exists:price_types,id',
+            'version_type' => 'required|in:fan,player,retro',
             'supplier_id' => 'nullable|exists:suppliers,id',
-            'cost' => 'nullable|numeric|min:0',
+            'supplier_product_name' => 'nullable|string|max:255',
         ]);
 
-        $validated['slug'] = Str::slug($validated['name']);
+        $seasonName = ($validated['version_type'] === 'retro') 
+            ? ($validated['season_manual'] ?? 'Retro')
+            : (Season::find($validated['season_id'])->name ?? 'S/T');
 
-        $product->update($validated);
+        $data = $validated;
+        $data['season'] = $seasonName;
+        
+        // CORRECCIONES PARA ACTUALIZACIÓN
+        $data['section_type'] = $request->section_type ?? $product->section_type ?? 'hombre';
+        $data['price_type_id'] = $request->price_type_id ?? $product->price_type_id ?? 1;
 
-        return redirect()
-            ->route('products.list')
-            ->with('success', 'Producto actualizado correctamente.');
+        $data['cost'] = ['fan' => 28.0, 'player' => 30.0, 'retro' => 30.0][$validated['version_type']] ?? 30.00;
+
+        unset($data['competition_id']);
+        $product->update($data);
+
+        if ($request->hasFile('images')) {
+            $lastPos = $product->images()->max('position') ?? -1;
+            foreach ($request->file('images') as $index => $image) {
+                $path = $image->store('products', 'public');
+                $product->images()->create([
+                    'path' => $path,
+                    'position' => $lastPos + $index + 1,
+                    'alt_text' => $product->name,
+                ]);
+            }
+        }
+
+        return redirect()->route('products.list')->with('success', 'Producto actualizado.');
     }
 
     /**
-     * BORRAR PRODUCTO
+     * ELIMINAR PRODUCTO
      */
     public function destroy(Product $product)
     {
+        foreach($product->images as $image) {
+            if (Storage::disk('public')->exists($image->path)) {
+                Storage::disk('public')->delete($image->path);
+            }
+        }
         $product->delete();
+        return redirect()->route('products.list')->with('success', 'Producto eliminado.');
+    }
 
-        return redirect()
-            ->route('products.list')
-            ->with('success', 'Producto eliminado correctamente.');
+    /**
+     * ELIMINAR IMAGEN ESPECÍFICA
+     */
+    public function destroyImage(ProductImage $image)
+    {
+        if ($image->path && Storage::disk('public')->exists($image->path)) {
+            Storage::disk('public')->delete($image->path);
+        }
+        $image->delete();
+        return back()->with('success', 'Imagen eliminada.');
+    }
+
+    /**
+     * VISTA PÚBLICA / CATÁLOGO
+     */
+    public function catalog(Request $request)
+    {
+        $query = Product::with(['images', 'team.competition'])
+            ->where('status', 'active');
+
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        if ($request->filled('competition')) {
+            $query->whereHas('team', function($q) use ($request) {
+                $q->where('competition_id', $request->competition);
+            });
+        }
+
+        if ($request->filled('team')) {
+            $query->where('team_id', $request->team);
+        }
+
+        $products = $query->latest()->paginate(12);
+        $competitions = Competition::where('active', true)->orderBy('name')->get();
+
+        $teams = collect();
+        if ($request->filled('competition')) {
+            $teams = Team::where('competition_id', $request->competition)
+                         ->where('active', true)
+                         ->orderBy('name')
+                         ->get();
+        }
+
+        return view('layouts.catalog', compact('products', 'competitions', 'teams'));
+    }
+
+    /**
+     * API PARA AJAX (Equipos por competición)
+     */
+    public function getTeamsByCompetition($competitionId)
+    {
+        $teams = Team::where('competition_id', $competitionId)
+                    ->where('active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name']);
+
+        return response()->json($teams);
     }
 }
