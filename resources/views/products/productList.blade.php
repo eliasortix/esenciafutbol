@@ -1,10 +1,4 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Gestión de Inventario de Productos') }}
-        </h2>
-    </x-slot>
-
     <div class="container-fluid px-4 py-4">
         <style>
             :root {
@@ -21,81 +15,131 @@
                 --radius: 18px;
             }
 
-            .page-wrap { max-width: 1440px; margin: 0 auto; }
-            .page-header { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 24px; margin-top: 20px; }
-            
-            .btn-sales { 
-                display: inline-flex; align-items: center; gap: 10px; 
-                background: white; color: var(--text); border: 1px solid var(--line);
-                border-radius: 14px; padding: 12px 18px; font-weight: 700; 
-                text-decoration: none; transition: all 0.2s;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            }
-            .btn-sales:hover { background: #f9fafb; border-color: var(--accent); color: var(--accent); }
+            nav .shrink-0.flex.items-center, 
+            nav .hidden.space-x-8 { display: none !important; }
 
-            /* Estilo específico para el botón de Pedidos */
-            .btn-orders {
-                border-color: #10b981 !important;
-                color: #059669 !important;
+            .page-wrap { max-width: 1440px; margin: 0 auto; }
+            
+            /* Ajuste de la cabecera superior */
+            .top-actions-row {
+                display: flex;
+                justify-content: flex-end;
+                gap: 12px;
+                margin-bottom: 20px;
+                margin-top: 10px;
             }
-            .btn-orders:hover {
-                background: #ecfdf5 !important;
+
+            /* Contenedor central: Card + Buscador */
+            .stats-search-container {
+                display: flex;
+                align-items: stretch;
+                gap: 20px;
+                margin-bottom: 25px;
+            }
+
+            .search-wrapper {
+                position: relative;
+                flex-grow: 1;
+                display: flex;
+                align-items: center;
+            }
+
+            .search-input {
+                width: 100%;
+                height: 54px; /* Ajustado para que combine con la altura visual de la card */
+                padding: 12px 18px 12px 45px;
+                border-radius: 14px;
+                border: 1px solid var(--line);
+                font-size: 15px;
+                background-color: white;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                transition: all 0.2s;
+            }
+
+            .search-input:focus {
+                outline: none;
+                border-color: var(--accent);
+                box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+            }
+
+            .search-icon {
+                position: absolute;
+                left: 15px;
+                color: var(--muted);
+                font-size: 18px;
+                pointer-events: none;
+            }
+            
+            /* Botones superiores */
+            .btn-sales { 
+                display: inline-flex; align-items: center; gap: 8px; 
+                background: white; color: #059669; border: 1px solid #10b981;
+                border-radius: 12px; padding: 10px 16px; font-weight: 700; 
+                text-decoration: none; transition: all 0.2s;
             }
 
             .btn-create { 
-                display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(135deg,var(--accent),#3b82f6); 
-                color: white; border-radius: 14px; padding: 12px 18px; font-weight: 700; text-decoration: none; box-shadow: 0 10px 20px rgba(37,99,235,.3); 
+                display: inline-flex; align-items: center; gap: 8px; 
+                background: #2563eb; color: white !important; 
+                border-radius: 12px; padding: 10px 20px; 
+                font-weight: 700; text-decoration: none;
+                box-shadow: 0 4px 12px rgba(37,99,235,0.2);
             }
 
-            .top-stats { display: flex; gap: 16px; margin-bottom: 22px; }
-            .stat-card { width: 220px; background: linear-gradient(145deg,#0f172a,#1e293b); border: 1px solid #1f2937; border-radius: var(--radius); padding: 20px; }
-            .stat-label { font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
-            .stat-value { font-size: 28px; font-weight: 800; color: white; }
+            /* Card de Modelo */
+            .stat-card { 
+                min-width: 240px; 
+                background: #111827; 
+                border-radius: var(--radius); 
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+            .stat-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .stat-value { font-size: 32px; font-weight: 800; color: white; line-height: 1; }
             
-            .main-card { background: white; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
+            .main-card { background: white; border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; border: 1px solid var(--line); }
             .products-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-            .products-table thead th { background: #f9fafb; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; padding: 16px 18px; border-bottom: 1px solid var(--line); }
-            .products-table tbody td { padding: 18px; border-bottom: 1px solid #f1f5f9; color: var(--text); font-size: 14px; }
-            .product-cell { display: flex; align-items: center; gap: 14px; }
-            .product-thumb { width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); }
-            .product-name { font-weight: 800; margin: 0; font-size: 14px; }
-            .supplier-name { font-size: 12px; color: #6366f1; font-weight: 600; }
-            .id-badge { background: #eef2ff; color: #4338ca; padding: 4px 8px; border-radius: 6px; font-weight: 700; }
-            .status-active { background: var(--success-bg); color: var(--success-text); padding: 5px 10px; border-radius: 999px; font-size: 12px; }
-            .status-inactive { background: #fee2e2; color: #991b1b; padding: 5px 10px; border-radius: 999px; font-size: 12px; }
-            .price { font-weight: 800; color: var(--text); }
-            .actions { display: flex; gap: 8px; justify-content: flex-end; }
-            .action-btn { border: 1px solid var(--line); padding: 6px 12px; border-radius: 10px; font-size: 13px; text-decoration: none; color: var(--text); font-weight: 600; }
+            .products-table thead th { background: #f9fafb; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+            .products-table tbody td { padding: 16px 18px; border-bottom: 1px solid #f1f5f9; color: var(--text); font-size: 14px; }
+            
+            .product-cell { display: flex; align-items: center; gap: 12px; }
+            .product-thumb { width: 50px; height: 50px; border-radius: 10px; object-fit: cover; border: 1px solid var(--line); }
+            .product-name { font-weight: 700; margin: 0; font-size: 14px; color: #1f2937; }
+            .id-badge { background: #f3f4f6; color: #6b7280; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+            
+            .status-active { background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; }
+            
+            .price { font-weight: 700; color: #111827; }
+            .action-btn { border: 1px solid var(--line); padding: 6px; border-radius: 8px; color: var(--muted); transition: all 0.2s; background: white; }
+            .action-btn:hover { background: #f9fafb; color: var(--accent); }
         </style>
 
         <div class="page-wrap">
-            <div class="page-header">
-                <a href="{{ route('inventory.index') }}" class="btn-sales btn-orders">
+            <div class="top-actions-row">
+                <a href="{{ route('inventory.index') }}" class="btn-sales">
                     <span>📦</span> Gestión de Productos
                 </a>
-
                 <a href="{{ route('products.create') }}" class="btn-create">
                     <span>＋</span> Nuevo producto
                 </a>
             </div>
 
-            <div class="top-stats">
+            <div class="stats-search-container">
                 <div class="stat-card">
                     <div class="stat-label">Modelos Catálogo</div>
                     <div class="stat-value">{{ $products->total() }}</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Stock Real (Pedidos)</div>
-                    <div class="stat-value" style="color: #10b981;">{{ $availableStockCount ?? 0 }}</div>
-                </div>
-                <div class="stat-card" style="border-color: #15803d; width: 280px;">
-                    <div class="stat-label" style="color: #4ade80;">Beneficio Estimado</div>
-                    <div class="stat-value" style="color: #4ade80;">{{ number_format($salesTotal ?? 0, 2) }}€</div>
-                </div>
+
+                <form action="{{ route('products.list') }}" method="GET" class="search-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" name="search" class="search-input" placeholder="Buscar producto, referencia o ID..." value="{{ request('search') }}">
+                </form>
             </div>
 
             @if (session('success'))
-                <div class="alert alert-success mb-4" style="background: #dcfce7; color: #15803d; padding: 15px; border-radius: 12px; font-weight: 700;">
+                <div class="alert mb-4" style="background: #dcfce7; color: #15803d; padding: 12px 16px; border-radius: 12px; font-weight: 600; border: 1px solid #bbf7d0;">
                     {{ session('success') }}
                 </div>
             @endif
@@ -107,7 +151,7 @@
                             <tr>
                                 <th>Producto</th>
                                 <th>ID</th>
-                                <th>Referencia Proveedor</th>
+                                <th>Ref. Proveedor</th>
                                 <th>Sección</th>
                                 <th>Versión</th>
                                 <th>Estado</th>
@@ -123,21 +167,19 @@
                                             @if ($product->images && $product->images->count())
                                                 <img src="{{ asset('storage/' . $product->images->first()->path) }}" class="product-thumb">
                                             @else
-                                                <div class="product-thumb" style="background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #9ca3af;">No img</div>
+                                                <div class="product-thumb" style="background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #9ca3af;">Sin foto</div>
                                             @endif
                                             <div>
                                                 <p class="product-name">{{ $product->name }}</p>
-                                                <small class="text-muted">{{ $product->season }}</small>
+                                                <small style="color: #9ca3af; font-size: 11px;">{{ $product->season }}</small>
                                             </div>
                                         </div>
                                     </td>
                                     <td><span class="id-badge">#{{ $product->id }}</span></td>
-                                    <td>
-                                        <span class="supplier-name">{{ $product->supplier_product_name ?? 'N/A' }}</span>
-                                    </td>
+                                    <td style="color: #6366f1; font-weight: 600;">{{ $product->supplier_product_name ?? 'N/A' }}</td>
                                     <td>{{ $product->section_type }}</td>
                                     <td>
-                                        <span class="badge bg-light text-dark border" style="padding: 4px 8px; border-radius: 6px; font-size: 11px;">
+                                        <span class="border" style="padding: 2px 6px; border-radius: 4px; font-size: 11px; background: #fff;">
                                             {{ $product->version_type ?? 'N/A' }}
                                         </span>
                                     </td>
@@ -148,9 +190,9 @@
                                     </td>
                                     <td><span class="price">{{ number_format($product->cost, 2) }}€</span></td>
                                     <td>
-                                        <div class="actions">
+                                        <div style="display: flex; gap: 6px; justify-content: flex-end;">
                                             <a href="{{ route('products.edit', $product) }}" class="action-btn">✏️</a>
-                                            <form action="{{ route('products.destroy', $product) }}" method="POST" onsubmit="return confirm('¿Borrar este modelo del catálogo?')">
+                                            <form action="{{ route('products.destroy', $product) }}" method="POST" onsubmit="return confirm('¿Eliminar?')">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="action-btn" style="color: #ef4444;">🗑</button>
                                             </form>
@@ -158,15 +200,19 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="8" class="text-center py-10" style="color: var(--muted);">No hay productos en el catálogo.</td></tr>
+                                <tr>
+                                    <td colspan="8" class="text-center py-12" style="color: #9ca3af;">
+                                        No se encontraron resultados para su búsqueda.
+                                    </td>
+                                </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <div class="pagination-wrap mt-6">
-                {{ $products->links() }}
+            <div class="mt-6">
+                {{ $products->appends(request()->query())->links() }}
             </div>
         </div>
     </div>
