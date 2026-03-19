@@ -11,32 +11,42 @@ class InventoryController extends Controller
 {
     public function index()
     {
-        // 1. Traemos los productos del catálogo (ESTO ES LO QUE FALTABA)
         $products = Product::orderBy('name')->get();
 
-        // 2. Datos para las tablas
-        $entries = Inventory::with('product')->latest()->get();
+        // 1. Productos para la tabla (los que no están vendidos)
+        $entries = Inventory::with('product')
+            ->where('is_sold', false) 
+            ->latest()
+            ->get();
+            
         $sales = Sale::latest()->get();
-        $availableStock = Inventory::with('product')->where('is_sold', false)->get();
+        
+        // 2. Colecciones para cálculos y para el SELECT del formulario
+        $availableStock = Inventory::with('product')->where('is_sold', false)->get(); // <--- REINSTALADA
+        $soldItems = Inventory::where('is_sold', true)->get();
 
-        // 3. Cálculos para las cards superiores
+        // 3. Cálculos de las Cards
         $totalStock = $availableStock->count();
         $totalProfit = $sales->sum('company_profit');
+        $currentInvestment = $availableStock->sum('cost_price');
+        $recoveredInvestment = $soldItems->sum('cost_price');
         
-        // 4. Sumar comisiones por vendedor
+        // 4. Comisiones
         $commissionsBySeller = Sale::where('seller_name', '!=', 'Web')
             ->selectRaw('seller_name, SUM(sale_price) as total_ventas, SUM(seller_commission) as total_comm')
             ->groupBy('seller_name')
             ->get();
 
-        // 5. IMPORTANTE: Añadir 'products' al compact
+        // 5. Enviamos TODO a la vista
         return view('inventory.index', compact(
-            'products', // <--- Asegúrate de que esta línea esté aquí
+            'products',
             'entries', 
             'sales', 
-            'availableStock', 
+            'availableStock', // <--- Importante para el formulario de venta
             'totalStock', 
             'totalProfit',
+            'currentInvestment',
+            'recoveredInvestment',
             'commissionsBySeller'
         ));
     }
@@ -59,7 +69,8 @@ class InventoryController extends Controller
         ]);
 
         $productId = $validated['product_id'] ?? null;
-        $nameForInventory = $validated['manual_product_name'] ?? ($productId ? Product::find($productId)->name : 'Producto Manual');
+        $nameForInventory = $validated['manual_product_name'] ?? 
+                            ($productId ? Product::find($productId)->name : 'Producto Manual');
 
         for ($i = 0; $i < $validated['quantity']; $i++) {
             Inventory::create([
@@ -71,12 +82,12 @@ class InventoryController extends Controller
             ]);
         }
 
-        return redirect()->route('inventory.index')->with('success', "¡Stock actualizado! Se han añadido {$validated['quantity']} unidades.");
+        return redirect()->route('inventory.index')->with('success', "Stock actualizado.");
     }
 
     public function destroy(Inventory $inventory)
     {
         $inventory->delete();
-        return back()->with('success', 'Pedido eliminado correctamente');
+        return back()->with('success', 'Eliminado correctamente.');
     }
 }

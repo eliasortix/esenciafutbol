@@ -26,10 +26,10 @@
 <div class="sales-wrapper">
     <div class="sales-card">
         <div class="sales-header">
-            <h3>Registrar Nueva Venta</h3>
+            <h3 id="sales-modal-title">Registrar Nueva Venta</h3>
         </div>
 
-        <form action="{{ route('sales.store') }}" method="POST" class="sales-form">
+        <form action="{{ route('sales.store') }}" method="POST" class="sales-form" id="sales-main-form">
             @csrf
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -37,7 +37,7 @@
                     <label class="group-label">Vendedor</label>
                     <select name="seller_name" id="seller_select" class="custom-input" required>
                         <option value="Web">Web</option>
-                        <option value="Elias">Elias</option>
+                        <option value="Elias" selected>Elias</option>
                         <option value="Mariano">Mariano</option>
                         <option value="Dani">Dani</option>
                         <option value="Jorge">Jorge</option>
@@ -51,18 +51,12 @@
             </div>
 
             <div>
-                <label class="group-label">Nombre Personalizado (Opcional)</label>
-                <input type="text" name="product_name_manual" class="custom-input" placeholder="Ej: Camiseta Retro AC Milan 2007">
-                <p style="font-size: 9px; color: var(--muted); margin-top: -10px; margin-bottom: 10px;">Si se deja vacío, usará el nombre del stock seleccionado.</p>
-            </div>
-
-            <div>
-                <label class="group-label">Unidad en Stock Disponible</label>
+                <label class="group-label">Producto en Stock</label>
                 <select name="inventory_id" id="inventory_select_form" class="custom-input" required>
-                    <option value="">-- Selecciona producto y talla --</option>
+                    <option value="">-- Selecciona producto --</option>
                     @foreach($availableStock as $item)
                         <option value="{{ $item->id }}" data-cost="{{ $item->cost_price }}">
-                            {{ $item->product->name }} (Talla: {{ $item->size }})
+                            {{ $item->product->name ?? 'Carga Manual' }} (Talla: {{ $item->size }})
                         </option>
                     @endforeach
                 </select>
@@ -77,7 +71,7 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                 <div>
                     <label class="group-label">Precio Venta (€)</label>
-                    <input type="number" name="sale_price" step="0.01" class="custom-input" 
+                    <input type="number" name="sale_price" id="sale_price_input" step="0.01" class="custom-input" 
                            style="color: var(--accent); font-weight: 800;" placeholder="0.00" required>
                 </div>
                 <div>
@@ -97,10 +91,11 @@
 <script>
     const inventorySelect = document.getElementById('inventory_select_form');
     const sellerSelect = document.getElementById('seller_select');
-    const salePriceInput = document.querySelector('input[name="sale_price"]');
+    const salePriceInput = document.getElementById('sale_price_input');
     const commissionInput = document.getElementById('commission_input');
     const hiddenCostInput = document.getElementById('cost_hidden_input');
 
+    // Función unificada para calcular comisión
     function updateCommission() {
         const cost = parseFloat(hiddenCostInput.value) || 0;
         const sale = parseFloat(salePriceInput.value) || 0;
@@ -120,18 +115,9 @@
         }
     }
 
+    // Escuchar cambios manuales
     salePriceInput.addEventListener('input', updateCommission);
-
-    sellerSelect.addEventListener('change', function() {
-        if (this.value === 'Web') {
-            commissionInput.readOnly = true;
-            commissionInput.style.opacity = "0.6";
-        } else {
-            commissionInput.readOnly = false;
-            commissionInput.style.opacity = "1";
-        }
-        updateCommission();
-    });
+    sellerSelect.addEventListener('change', updateCommission);
 
     inventorySelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
@@ -149,4 +135,24 @@
             hiddenCostInput.value = '';
         }
     });
+
+    // FUNCIÓN GLOBAL: Para llamar desde el botón de la tabla
+    window.fillSaleForm = function(inventoryId, costPrice, productName) {
+        // 1. Resetear formulario
+        document.getElementById('sales-main-form').reset();
+        
+        // 2. Asignar Producto
+        inventorySelect.value = inventoryId;
+        
+        // 3. Asignar Coste
+        hiddenCostInput.value = costPrice;
+        document.getElementById('display_cost').textContent = parseFloat(costPrice).toFixed(2);
+        document.getElementById('cost_info_box').classList.remove('hidden');
+        
+        // 4. Cambiar título para confirmar qué vendemos
+        document.getElementById('sales-modal-title').innerText = "Vender: " + productName;
+        
+        // 5. Reiniciar comisión
+        updateCommission();
+    }
 </script>
