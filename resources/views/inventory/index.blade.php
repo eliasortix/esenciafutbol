@@ -43,6 +43,7 @@
         .badge-success { background: #d1fae5; color: #065f46; }
         .badge-info { background: #eef2ff; color: #4338ca; }
         .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-extra { background: #f0f7ff; color: #2563eb; border: 1px solid #dbeafe; display: inline-flex; align-items: center; gap: 4px; }
 
         .btn-delete { color: #fca5a5; transition: 0.2s; background: none; border: none; cursor: pointer; padding: 5px; border-radius: 8px; }
         .btn-delete:hover { color: #ef4444; background: #fef2f2; }
@@ -68,7 +69,6 @@
                 <div class="header-title"><h2>Logística e Inventario</h2></div>
             </div>
             
-            {{-- Botón de imprimir solo para Cuentas --}}
             <div id="btn-container-accounts" class="hidden">
                 <button class="btn-action btn-back" onclick="window.print()">🖨️ Imprimir Informe</button>
             </div>
@@ -122,7 +122,8 @@
                         <th>Fecha</th>
                         <th>Producto / Proveedor</th>
                         <th>Talla</th>
-                        <th>Coste</th>
+                        <th>Información Extras</th>
+                        <th>Coste Final</th>
                         <th>Estado</th>
                         <th style="text-align: right;">Acciones</th>
                     </tr>
@@ -136,12 +137,36 @@
                             <div style="font-size: 10px; color: var(--muted); text-transform: uppercase;">{{ $entry->supplier_product_name ?? 'Sin proveedor' }}</div>
                         </td>
                         <td><span class="status-badge badge-info">{{ $entry->size }}</span></td>
-                        <td>{{ number_format($entry->cost_price, 2) }}€</td>
+                        <td>
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                @if($entry->has_dorsal)
+                                    <span class="status-badge badge-extra">
+                                        👕 <strong>{{ $entry->dorsal_name ?? 'S/N' }}</strong> ({{ $entry->dorsal_number ?? '-' }})
+                                    </span>
+                                @endif
+                                
+                                @if($entry->patches_qty > 0)
+                                    <span class="status-badge badge-extra">
+                                        🛡️ {{ $entry->patches_qty }} {{ $entry->patches_qty == 1 ? 'Parche' : 'Parches' }}: 
+                                        <span style="margin-left:4px; font-weight:400;">{{ $entry->patches_description ?? 'Sin detalle' }}</span>
+                                    </span>
+                                @endif
+
+                                @if(!$entry->has_dorsal && $entry->patches_qty == 0)
+                                    <span style="color: var(--muted); font-size: 10px; font-style: italic;">Sin extras</span>
+                                @endif
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 900; font-size: 15px; color: var(--text);">
+                                {{ number_format($entry->total_computed_cost, 2) }}€
+                            </div>
+                        </td>
                         <td><span class="status-badge {{ $entry->is_sold ? '' : 'badge-success' }}">{{ $entry->is_sold ? 'Vendido' : 'En Stock' }}</span></td>
                         <td style="text-align: right;">
                             <div style="display: flex; gap: 8px; justify-content: flex-end; align-items: center;">
                                 @if(!$entry->is_sold)
-                                    <button onclick="venderProducto({{ $entry->id }}, {{ $entry->cost_price }}, '{{ $entry->product->name ?? 'Producto' }} (Talla {{ $entry->size }})')" class="btn-sell-row">💰 Vender</button>
+                                    <button onclick="venderProducto({{ $entry->id }}, {{ $entry->total_computed_cost }}, '{{ $entry->product->name ?? 'Producto' }} (Talla {{ $entry->size }})')" class="btn-sell-row">💰 Vender</button>
                                 @endif
                                 <form action="{{ route('inventory.destroy', $entry) }}" method="POST" onsubmit="return confirm('¿Eliminar?')">
                                     @csrf @method('DELETE')
@@ -212,27 +237,22 @@
 
     <script>
         function switchTab(tab) {
-            // Actualizar botones de pestañas
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-tab-' + tab).classList.add('active');
 
-            // Ocultar todas las secciones y sus contenedores de botones
             ['inventory', 'sales', 'accounts'].forEach(t => {
                 document.getElementById('tab-' + t).classList.add('hidden');
                 let btnCont = document.getElementById('btn-container-' + t);
                 if(btnCont) btnCont.classList.add('hidden');
             });
 
-            // Mostrar la pestaña seleccionada y sus botones
             document.getElementById('tab-' + tab).classList.remove('hidden');
             let activeBtnCont = document.getElementById('btn-container-' + tab);
             if(activeBtnCont) activeBtnCont.classList.remove('hidden');
         }
 
-        // Buscador reactivo (funciona para Inventario y Ventas)
         document.getElementById('inventorySearch').addEventListener('keyup', function() {
             let filter = this.value.toLowerCase();
-            // Detectamos qué tabla está visible actualmente
             let targetTable = document.getElementById('tab-inventory').classList.contains('hidden') ? '#salesTable' : '#inventoryTable';
             let rows = document.querySelectorAll(targetTable + ' tbody tr');
             

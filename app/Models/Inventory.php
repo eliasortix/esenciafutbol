@@ -7,9 +7,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Inventory extends Model
 {
-    protected $fillable = ['product_id', 'supplier_product_name', 'cost_price', 'size', 'is_sold'];
+    // Añadimos TODOS los campos nuevos aquí para que dejen de salir a 0
+    protected $fillable = [
+        'product_id', 
+        'supplier_product_name', 
+        'cost_price', 
+        'size', 
+        'is_sold',
+        'patches_qty',
+        'patches_description',
+        'has_dorsal',
+        'dorsal_name',
+        'dorsal_number',
+        'total_computed_cost'
+    ];
 
-    // Relación: Cada unidad de inventario pertenece a un producto del catálogo
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
